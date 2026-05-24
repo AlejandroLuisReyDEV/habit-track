@@ -16,7 +16,7 @@ Para ejecutar este proyecto en tu propia máquina, asegúrate de tener [Node.js]
    `git clone https://github.com/AlejandroLuisReyDEV/habit-track.git`
 
 2. Accede al directorio del proyecto:
-   `cd HabitTrack`
+   `cd habit-track`
 
 3. Instala las dependencias:
    `npm install`
