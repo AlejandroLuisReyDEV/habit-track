@@ -53,14 +53,22 @@ function App() {
   // --- ESTADO DE HÁBITOS CON LOCALSTORAGE ---
   const [habits, setHabits] = useState([]);
 
-  // NUEVO: Cargar los hábitos desde la base de datos al iniciar
+  // NUEVO: Cargar los hábitos con ESCUDO PROTECTOR
   useEffect(() => {
     const fetchMyHabits = async () => {
       try {
         const data = await getHabits();
-        setHabits(data);
+
+        // ESCUDO: Comprobamos que lo que llega es realmente una lista (Array)
+        if (Array.isArray(data)) {
+          setHabits(data);
+        } else {
+          console.error("El backend no devolvió una lista válida:", data);
+          setHabits([]); // Ante la duda, lista vacía para no explotar
+        }
       } catch (error) {
         console.error("Error al cargar desde el servidor:", error);
+        setHabits([]); // Si hay error de red, lista vacía
       }
     };
     fetchMyHabits();
@@ -75,26 +83,26 @@ function App() {
     localStorage.setItem("ht_username", username);
   }, [username]);
 
-// --- FUNCIONES CORE CONECTADAS A LA NUBE ---
-  
+  // --- FUNCIONES CORE CONECTADAS A LA NUBE ---
+
   const toggleDay = async (habitId, dayIndex) => {
     // 1. Actualización Optimista (cambia la UI al instante para que sea rápido)
     const habitToUpdate = habits.find(h => h.id === habitId || h._id === habitId);
     const newHistory = [...habitToUpdate.history];
     newHistory[dayIndex] = !newHistory[dayIndex];
-    
-    setHabits(habits.map((habit) => 
+
+    setHabits(habits.map((habit) =>
       (habit.id === habitId || habit._id === habitId) ? { ...habit, history: newHistory } : habit
     ));
 
     // 2. Guarda en la base de datos en segundo plano
-    const dbId = habitToUpdate._id || habitToUpdate.id; 
+    const dbId = habitToUpdate._id || habitToUpdate.id;
     await updateHabit(dbId, { history: newHistory });
   };
 
   const handleAddHabit = async () => {
     if (newHabit.name.trim() === "") return;
-    
+
     const habitPayload = {
       name: newHabit.name,
       description: newHabit.description,
