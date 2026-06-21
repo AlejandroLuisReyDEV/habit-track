@@ -31,10 +31,10 @@ const LoginScreen = ({ isDarkMode }) => {
       } else {
         data = await loginUser({ email: formData.email, password: formData.password });
       }
-      
+
       // Si sale bien, guardamos el usuario en el Contexto global
       login(data);
-      
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -79,15 +79,15 @@ const LoginScreen = ({ isDarkMode }) => {
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium mb-1">Email o Nombre de Usuario</label>
             <input
-              type="email"
-              name="email"
+              type="text"  // <-- Cambiado de email a text
+              name="email" // <-- Lo dejamos como email para que no se rompa la lógica
               value={formData.email}
               onChange={handleChange}
               required
               className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none transition-all ${inputBg}`}
-              placeholder="tu@email.com"
+              placeholder="tu@email.com o Alejandro" // <-- Nuevo placeholder
             />
           </div>
 
