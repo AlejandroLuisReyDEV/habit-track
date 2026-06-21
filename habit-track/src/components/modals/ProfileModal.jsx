@@ -1,7 +1,8 @@
 import React from "react";
+import { useAuth } from '../../context/AuthContext';
 
 export default function ProfileModal({
-  username,
+  username, // Esta variable ya te llega desde App.jsx
   globalTotalDays,
   unlockedAchievements,
   displayAchievements,
@@ -23,16 +24,18 @@ export default function ProfileModal({
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-              {user.username.charAt(0)}
+              {/* ✅ USAMOS LA VARIABLE QUE LLEGA POR PROPS */}
+              {username?.charAt(0)}
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{user.username}</h2>
+              {/* ✅ USAMOS LA VARIABLE QUE LLEGA POR PROPS */}
+              <h2 className="text-2xl font-bold">{username}</h2>
               <p className={textMuted}>{t.member}</p>
             </div>
           </div>
           <button onClick={() => setIsProfileOpen(false)} className="text-gray-400 hover:text-current text-2xl">✕</button>
         </div>
-        
+
         <div className="mb-6 p-6 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-white text-center shadow-lg">
           <p className="text-sm font-semibold uppercase tracking-wider opacity-80 mb-1">{t.impact}</p>
           <p className="text-5xl font-black mb-2">{globalTotalDays}</p>
@@ -42,7 +45,7 @@ export default function ProfileModal({
         <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 mt-6 ${textMuted}`}>
           {t.achievements}
         </h3>
-        
+
         {/* CORRECCIÓN: Usamos Grid de 4 columnas en lugar de Flex con Scroll */}
         <div className="grid grid-cols-4 gap-2 mb-6">
           {unlockedAchievements.length > 0 ? (
