@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import Habit from './models/Habit.js';
+import jwt from 'jsonwebtoken';
+import User from './models/User.js';
 
 dotenv.config();
 
@@ -31,6 +33,71 @@ const connectDB = async () => {
 // Ruta de prueba
 app.get('/', (req, res) => {
   res.send('¡Servidor Serverless de HabitTrack funcionando! 🚀');
+});
+
+// ==========================================
+// --- ENDPOINTS DE AUTENTICACIÓN (LOGIN/REGISTRO) ---
+// ==========================================
+
+// Función auxiliar para generar el Token
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' }); // El token dura 30 días
+};
+
+// 1. POST: Registrar un nuevo usuario
+app.post('/api/register', async (req, res) => {
+  try {
+    await connectDB();
+    const { username, email, password } = req.body;
+
+    // Comprobar si el correo ya existe en la base de datos
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: "Este email ya está registrado" });
+    }
+
+    // Crear el usuario (el User.js se encarga de encriptar la contraseña)
+    const user = await User.create({ username, email, password });
+
+    // Si se crea bien, devolvemos los datos y su Token de acceso
+    if (user) {
+      res.status(201).json({
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        token: generateToken(user._id)
+      });
+    } else {
+      res.status(400).json({ message: "Datos de usuario inválidos" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
+});
+
+// 2. POST: Iniciar sesión (Login)
+app.post('/api/login', async (req, res) => {
+  try {
+    await connectDB();
+    const { email, password } = req.body;
+
+    // Buscar al usuario por su email
+    const user = await User.findOne({ email });
+
+    // Si existe y la contraseña coincide (usando la función que creaste en User.js)
+    if (user && (await user.matchPassword(password))) {
+      res.json({
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        token: generateToken(user._id)
+      });
+    } else {
+      res.status(401).json({ message: "Email o contraseña incorrectos" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor", error: error.message });
+  }
 });
 
 // ==========================================
