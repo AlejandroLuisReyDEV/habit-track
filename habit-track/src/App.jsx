@@ -79,10 +79,6 @@ function App() {
     localStorage.setItem("ht_darkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
 
-  useEffect(() => {
-    localStorage.setItem("ht_username", username);
-  }, [username]);
-
   // --- FUNCIONES CORE CONECTADAS A LA NUBE ---
 
   const toggleDay = async (habitId, dayIndex) => {
@@ -109,7 +105,7 @@ function App() {
       icon: newHabit.icon,
       colorKey: newHabit.colorKey,
       history: Array(365).fill(false),
-      userId: user.username // Temporalmente asociamos el hábito a este nombre
+      userId: user?.username // Temporalmente asociamos el hábito a este nombre
     };
 
     try {
@@ -297,9 +293,9 @@ function App() {
           <div className="flex items-center gap-3">
             {/* Botón de Perfil con el nombre real del usuario */}
             <button onClick={() => setIsProfileOpen(true)} className="flex items-center gap-3 hover:bg-gray-500/10 p-2 rounded-xl transition-colors">
-              <span className="font-medium hidden sm:block">{user.username}</span>
+              <span className="font-medium hidden sm:block">{user?.username}</span>
               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md uppercase">
-                {user.username.charAt(0)}
+                {user?.username?.charAt(0)}
               </div>
             </button>
 
@@ -436,7 +432,7 @@ function App() {
 
       {isProfileOpen && (
         <ProfileModal
-          username={user.username}
+          username={user?.username}
           globalTotalDays={globalTotalDays}
           unlockedAchievements={unlockedAchievements}
           displayAchievements={displayAchievements}

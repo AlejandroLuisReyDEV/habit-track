@@ -23,10 +23,10 @@ export default function ProfileModal({
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-              {username.charAt(0)}
+              {user.username.charAt(0)}
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{username}</h2>
+              <h2 className="text-2xl font-bold">{user.username}</h2>
               <p className={textMuted}>{t.member}</p>
             </div>
           </div>
