@@ -56,7 +56,7 @@ function App() {
   // NUEVO: Cargar los hábitos con ESCUDO PROTECTOR Y FRENO
   useEffect(() => {
     const fetchMyHabits = async () => {
-      // FRENO: Si no hay usuario logueado, no pedimos nada al servidor
+      // FRENO: Si el usuario todavía no existe en la memoria, no hacemos la petición
       if (!user) return;
 
       try {
@@ -72,7 +72,7 @@ function App() {
       }
     };
     fetchMyHabits();
-  }, [user]); // <-- CLAVE: Esto le dice a React que vuelva a pedirlos cuando el usuario cambie (se loguee)
+  }, [user]); // <-- CLAVE: React volverá a ejecutar esto justo DESPUÉS de loguearte
 
   // --- EFECTOS ---
   useEffect(() => {
