@@ -82,16 +82,18 @@ function App() {
   // --- FUNCIONES CORE CONECTADAS A LA NUBE ---
 
   const toggleDay = async (habitId, dayIndex) => {
-    // 1. Actualización Optimista (cambia la UI al instante para que sea rápido)
-    const habitToUpdate = habits.find(h => h.id === habitId || h._id === habitId);
+    if (!habitId) return; // FRENO ANTI-DUPLICADOS
+
+    const habitToUpdate = habits.find(h => (h._id || h.id) === habitId);
+    if (!habitToUpdate) return;
+
     const newHistory = [...habitToUpdate.history];
     newHistory[dayIndex] = !newHistory[dayIndex];
 
     setHabits(habits.map((habit) =>
-      (habit.id === habitId || habit._id === habitId) ? { ...habit, history: newHistory } : habit
+      ((habit._id || habit.id) === habitId) ? { ...habit, history: newHistory } : habit
     ));
 
-    // 2. Guarda en la base de datos en segundo plano
     const dbId = habitToUpdate._id || habitToUpdate.id;
     await updateHabit(dbId, { history: newHistory });
   };
@@ -217,10 +219,11 @@ function App() {
   const displayAchievements = unlockedAchievements.slice(0, 3);
   const hasMoreAchievements = unlockedAchievements.length > 3;
 
-  // --- RENDERIZADO DEL MAPA DE CALOR ---
+  // --- RENDERIZADO DEL MAPA DE CALOR (CORREGIDO PARA MONGODB) ---
   const renderHeatmap = (habit) => {
     const activeColor = THEME_COLORS[habit.colorKey].active;
     const emptyColor = isDarkMode ? "bg-gray-500/20" : "bg-gray-400/30";
+    const safeId = habit._id || habit.id; // <-- EL IDENTIFICADOR SEGURO
 
     if (view === "week") {
       const weekData = habit.history.slice(-7);
@@ -229,7 +232,11 @@ function App() {
           {weekData.map((isDone, i) => {
             const actualIndex = habit.history.length - 7 + i;
             return (
-              <button key={i} onClick={(e) => { e.stopPropagation(); toggleDay(habit.id, actualIndex); }} className={`w-full h-10 rounded-md transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`} />
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); toggleDay(safeId, actualIndex); }}
+                className={`w-full h-10 rounded-md transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
+              />
             );
           })}
         </div>
@@ -241,7 +248,11 @@ function App() {
           {monthData.map((isDone, i) => {
             const actualIndex = habit.history.length - 30 + i;
             return (
-              <button key={i} onClick={(e) => { e.stopPropagation(); toggleDay(habit.id, actualIndex); }} className={`w-full aspect-square rounded-md transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`} />
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); toggleDay(safeId, actualIndex); }}
+                className={`w-full aspect-square rounded-md transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
+              />
             );
           })}
         </div>
@@ -250,7 +261,11 @@ function App() {
       return (
         <div className="grid grid-rows-7 grid-flow-col gap-[3px] mt-4 overflow-x-auto pb-2 scrollbar-hide">
           {habit.history.map((isDone, i) => (
-            <button key={i} onClick={(e) => { e.stopPropagation(); toggleDay(habit.id, i); }} className={`w-[10px] h-[10px] rounded-[2px] flex-shrink-0 transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`} />
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); toggleDay(safeId, i); }}
+              className={`w-[10px] h-[10px] rounded-[2px] flex-shrink-0 transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
+            />
           ))}
         </div>
       );
@@ -428,16 +443,16 @@ function App() {
         />
       )}
 
-      {/* MODAL DE PERFIL */}
-
+      {/* MODAL DE PERFIL BLINDADO */}
+      
       {isProfileOpen && (
         <ProfileModal
-          username={user?.username}
-          globalTotalDays={globalTotalDays}
-          unlockedAchievements={unlockedAchievements}
-          displayAchievements={displayAchievements}
-          hasMoreAchievements={hasMoreAchievements}
-          habits={habits}
+          username={user?.username || "Usuario"}
+          globalTotalDays={globalTotalDays || 0}
+          unlockedAchievements={unlockedAchievements || []}
+          displayAchievements={displayAchievements || []}
+          hasMoreAchievements={hasMoreAchievements || false}
+          habits={habits || []}
           getTotalDays={getTotalDays}
           setIsProfileOpen={setIsProfileOpen}
           setIsAchievementsModalOpen={setIsAchievementsModalOpen}
