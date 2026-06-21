@@ -34,3 +34,29 @@ export const deleteHabit = async (id) => {
   if (!response.ok) throw new Error("Error eliminando el hábito");
   return response.json();
 };
+
+export const loginUser = async (credentials) => {
+  const response = await fetch(`${API_URL}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Error al iniciar sesión");
+  }
+  return response.json();
+};
+
+export const registerUser = async (userData) => {
+  const response = await fetch(`${API_URL}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(userData),
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || "Error al registrarse");
+  }
+  return response.json();
+};

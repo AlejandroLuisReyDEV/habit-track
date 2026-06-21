@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { THEME_COLORS, ICON_OPTIONS } from "./constants/theme";
 import { ACHIEVEMENTS } from "./constants/achievements";
 import { TRANSLATIONS } from "./constants/translations";
+import { useAuth } from "./context/AuthContext";
+import LoginScreen from "./components/LoginScreen";
 import SettingsModal from "./components/modals/SettingsModal";
 import AddHabitModal from "./components/modals/AddHabitModal";
 import ProfileModal from "./components/modals/ProfileModal";
 import HabitDetailsModal from "./components/modals/HabitDetailsModal";
 import AchievementsModal from "./components/modals/AchievementsModal";
+
 import { getHabits, createHabit, updateHabit, deleteHabit } from "./services/api";
 
 function App() {
@@ -16,10 +19,7 @@ function App() {
     return saved !== null ? JSON.parse(saved) : true;
   });
 
-  const [username, setUsername] = useState(() => {
-    const saved = localStorage.getItem("ht_username");
-    return saved || "Alejandro";
-  });
+  const { user, loading, logout } = useAuth();
 
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem('ht_language');
@@ -265,6 +265,21 @@ function App() {
   const modalBg = isDarkMode ? "bg-[#1F2937] border-gray-700" : "bg-white border-gray-200";
   const textMuted = isDarkMode ? "text-gray-400" : "text-gray-500";
 
+  // --- EL PORTERO DE DISCOTECA ---
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? "bg-[#0B1120] text-white" : "bg-gray-50 text-black"}`}>
+        <div className="text-2xl font-bold animate-pulse">Cargando HabitTrack...</div>
+      </div>
+    );
+  }
+
+  // Si no hay usuario logueado, le devolvemos la pantalla de Login y NO cargamos los hábitos
+  if (!user) {
+    return <LoginScreen isDarkMode={isDarkMode} />;
+  }
+  // -------------------------------
+
   return (
     <div className={`min-h-screen font-sans p-4 md:p-8 relative transition-colors duration-300 ${themeBg}`}>
       <div className="w-full max-w-4xl mx-auto relative min-h-[90vh]">
@@ -274,15 +289,25 @@ function App() {
           <button onClick={() => setIsSettingsOpen(true)} className={`text-2xl hover:rotate-90 transition-transform ${textMuted} hover:text-current`}>
             ⚙️
           </button>
+
           <h1 className="text-2xl font-bold tracking-wider absolute left-1/2 -translate-x-1/2 hidden sm:block">
             HabitTrack
           </h1>
-          <button onClick={() => setIsProfileOpen(true)} className="flex items-center gap-3 hover:bg-gray-500/10 p-2 rounded-xl transition-colors">
-            <span className="font-medium hidden sm:block">{username}</span>
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-              {username.charAt(0)}
-            </div>
-          </button>
+
+          <div className="flex items-center gap-3">
+            {/* Botón de Perfil con el nombre real del usuario */}
+            <button onClick={() => setIsProfileOpen(true)} className="flex items-center gap-3 hover:bg-gray-500/10 p-2 rounded-xl transition-colors">
+              <span className="font-medium hidden sm:block">{user.username}</span>
+              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-md uppercase">
+                {user.username.charAt(0)}
+              </div>
+            </button>
+
+            {/* Botón de Cerrar Sesión */}
+            <button onClick={logout} className="text-sm font-bold text-red-500 hover:bg-red-500/10 px-3 py-2 rounded-lg transition-colors">
+              Salir
+            </button>
+          </div>
         </header>
 
         {/* SELECTOR DE VISTAS */}
@@ -303,47 +328,66 @@ function App() {
               {t.title}
             </h2>
           </div>
-          <div className={`grid gap-5 ${view === "month" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
-            {habits.map((habit, index) => {
-              const isTodayDone = habit.history[364];
-              const cardTint = isDarkMode ? THEME_COLORS[habit.colorKey].darkBg : THEME_COLORS[habit.colorKey].lightBg;
-              const activeColor = THEME_COLORS[habit.colorKey].active;
 
-              return (
-                <div key={habit.id} onClick={() => { setSelectedHabit(habit); setIsEditMode(false); }} className={`${cardTint} border-2 rounded-2xl p-5 flex flex-col shadow-sm transition-all hover:scale-[1.01] cursor-pointer group`}>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <div className={`${isDarkMode ? "bg-black/20" : "bg-white"} p-3 rounded-xl text-2xl shadow-sm`}>{habit.icon}</div>
-                      <div className="flex flex-col">
-                        <span className={`font-bold text-xl tracking-wide ${isTodayDone && view !== "month" ? "line-through opacity-60" : ""}`}>{habit.name}</span>
-                        <div className="flex items-center gap-3 mt-1">
-                          {habit.description && <span className={`text-sm ${textMuted}`}>{habit.description}</span>}
-                          {getStreak(habit.history) > 0 && (
-                            <span className="text-orange-500 font-bold text-xs bg-orange-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
-                              🔥 {getStreak(habit.history)} {t.days}
-                            </span>
-                          )}
+          {/* MENSAJE MOTIVACIONAL SI NO HAY HÁBITOS */}
+          {habits.length === 0 ? (
+            <div className="text-center py-20 px-4">
+              <div className="text-6xl mb-6">🌱</div>
+              <h2 className="text-2xl font-bold mb-3">¡Comienza tu nueva rutina!</h2>
+              <p className={`${textMuted} max-w-md mx-auto mb-8`}>
+                No tienes ningún hábito registrado. El mejor momento para empezar a construir tu disciplina fue ayer, el segundo mejor momento es hoy.
+              </p>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:scale-105 transition-all"
+              >
+                Crear mi primer hábito
+              </button>
+            </div>
+          ) : (
+            /* LA CUADRÍCULA NORMAL DE HÁBITOS (Lo que ya tenías) */
+            <div className={`grid gap-5 ${view === "month" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
+              {habits.map((habit, index) => {
+                const isTodayDone = habit.history[364];
+                const cardTint = isDarkMode ? THEME_COLORS[habit.colorKey].darkBg : THEME_COLORS[habit.colorKey].lightBg;
+                const activeColor = THEME_COLORS[habit.colorKey].active;
+
+                return (
+                  <div key={habit.id || habit._id} onClick={() => { setSelectedHabit(habit); setIsEditMode(false); }} className={`${cardTint} border-2 rounded-2xl p-5 flex flex-col shadow-sm transition-all hover:scale-[1.01] cursor-pointer group`}>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className={`${isDarkMode ? "bg-black/20" : "bg-white"} p-3 rounded-xl text-2xl shadow-sm`}>{habit.icon}</div>
+                        <div className="flex flex-col">
+                          <span className={`font-bold text-xl tracking-wide ${isTodayDone && view !== "month" ? "line-through opacity-60" : ""}`}>{habit.name}</span>
+                          <div className="flex items-center gap-3 mt-1">
+                            {habit.description && <span className={`text-sm ${textMuted}`}>{habit.description}</span>}
+                            {getStreak(habit.history) > 0 && (
+                              <span className="text-orange-500 font-bold text-xs bg-orange-500/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                🔥 {getStreak(habit.history)} {t.days}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col">
-                        {index > 0 && <button onClick={(e) => moveHabitUp(index, e)} className={`text-xs p-1 rounded hover:bg-gray-500/20 ${textMuted}`}>▲</button>}
-                        {index < habits.length - 1 && <button onClick={(e) => moveHabitDown(index, e)} className={`text-xs p-1 rounded hover:bg-gray-500/20 ${textMuted}`}>▼</button>}
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col">
+                          {index > 0 && <button onClick={(e) => moveHabitUp(index, e)} className={`text-xs p-1 rounded hover:bg-gray-500/20 ${textMuted}`}>▲</button>}
+                          {index < habits.length - 1 && <button onClick={(e) => moveHabitDown(index, e)} className={`text-xs p-1 rounded hover:bg-gray-500/20 ${textMuted}`}>▼</button>}
+                        </div>
+                        {view !== "month" && (
+                          <button onClick={(e) => { e.stopPropagation(); toggleDay(habit._id || habit.id, 364); }} className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-lg transition-colors ${isTodayDone ? `${activeColor} border-transparent text-white shadow-md` : `${isDarkMode ? "border-gray-600 bg-gray-800/50" : "border-gray-300 bg-white"}`}`}>
+                            {isTodayDone ? "✓" : ""}
+                          </button>
+                        )}
                       </div>
-                      {view !== "month" && (
-                        <button onClick={(e) => { e.stopPropagation(); toggleDay(habit.id, 364); }} className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-lg transition-colors ${isTodayDone ? `${activeColor} border-transparent text-white shadow-md` : `${isDarkMode ? "border-gray-600 bg-gray-800/50" : "border-gray-300 bg-white"}`}`}>
-                          {isTodayDone ? "✓" : ""}
-                        </button>
-                      )}
                     </div>
+                    {renderHeatmap(habit)}
                   </div>
-                  {renderHeatmap(habit)}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </main>
 
         <button onClick={() => setIsAddModalOpen(true)} className={`fixed bottom-8 right-8 ${isDarkMode ? "bg-white text-black" : "bg-blue-600 text-white"} rounded-full w-16 h-16 flex items-center justify-center text-4xl shadow-2xl hover:scale-105 transition-all z-10`}>+</button>
