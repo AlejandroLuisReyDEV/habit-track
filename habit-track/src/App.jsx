@@ -109,7 +109,7 @@ function App() {
       icon: newHabit.icon,
       colorKey: newHabit.colorKey,
       history: Array(365).fill(false),
-      userId: username // Temporalmente asociamos el hábito a este nombre
+      userId: user.username // Temporalmente asociamos el hábito a este nombre
     };
 
     try {
@@ -436,7 +436,7 @@ function App() {
 
       {isProfileOpen && (
         <ProfileModal
-          username={username}
+          username={user.username}
           globalTotalDays={globalTotalDays}
           unlockedAchievements={unlockedAchievements}
           displayAchievements={displayAchievements}
