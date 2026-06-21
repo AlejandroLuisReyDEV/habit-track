@@ -7,6 +7,7 @@ import AddHabitModal from "./components/modals/AddHabitModal";
 import ProfileModal from "./components/modals/ProfileModal";
 import HabitDetailsModal from "./components/modals/HabitDetailsModal";
 import AchievementsModal from "./components/modals/AchievementsModal";
+import { getHabits, createHabit, updateHabit, deleteHabit } from "./services/api";
 
 function App() {
   // --- ESTADOS GLOBALES CON LOCALSTORAGE ---
@@ -50,25 +51,22 @@ function App() {
   });
 
   // --- ESTADO DE HÁBITOS CON LOCALSTORAGE ---
-  const [habits, setHabits] = useState(() => {
-    const saved = localStorage.getItem("ht_habits");
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    const generateHistory = () => Array(365).fill(false).map(() => Math.random() > 0.8);
-    return [
-      { id: 1, name: "Creatina", icon: "🥛", colorKey: "slate", history: generateHistory() },
-      { id: 2, name: "Leer", description: "Mínimo 10 páginas", icon: "📖", colorKey: "yellow", history: generateHistory() },
-      { id: 3, name: "GYM", icon: "🏋️", colorKey: "red", history: generateHistory() },
-      { id: 4, name: "Estudiar", icon: "💻", colorKey: "blue", history: generateHistory() },
-    ];
-  });
+  const [habits, setHabits] = useState([]);
+
+  // NUEVO: Cargar los hábitos desde la base de datos al iniciar
+  useEffect(() => {
+    const fetchMyHabits = async () => {
+      try {
+        const data = await getHabits();
+        setHabits(data);
+      } catch (error) {
+        console.error("Error al cargar desde el servidor:", error);
+      }
+    };
+    fetchMyHabits();
+  }, []);
 
   // --- EFECTOS ---
-  useEffect(() => {
-    localStorage.setItem("ht_habits", JSON.stringify(habits));
-  }, [habits]);
-
   useEffect(() => {
     localStorage.setItem("ht_darkMode", JSON.stringify(isDarkMode));
   }, [isDarkMode]);
@@ -77,42 +75,68 @@ function App() {
     localStorage.setItem("ht_username", username);
   }, [username]);
 
-  // --- FUNCIONES CORE ---
-  const toggleDay = (habitId, dayIndex) => {
-    setHabits(habits.map((habit) => {
-      if (habit.id === habitId) {
-        const newHistory = [...habit.history];
-        newHistory[dayIndex] = !newHistory[dayIndex];
-        return { ...habit, history: newHistory };
-      }
-      return habit;
-    }));
+// --- FUNCIONES CORE CONECTADAS A LA NUBE ---
+  
+  const toggleDay = async (habitId, dayIndex) => {
+    // 1. Actualización Optimista (cambia la UI al instante para que sea rápido)
+    const habitToUpdate = habits.find(h => h.id === habitId || h._id === habitId);
+    const newHistory = [...habitToUpdate.history];
+    newHistory[dayIndex] = !newHistory[dayIndex];
+    
+    setHabits(habits.map((habit) => 
+      (habit.id === habitId || habit._id === habitId) ? { ...habit, history: newHistory } : habit
+    ));
+
+    // 2. Guarda en la base de datos en segundo plano
+    const dbId = habitToUpdate._id || habitToUpdate.id; 
+    await updateHabit(dbId, { history: newHistory });
   };
 
-  const handleAddHabit = () => {
+  const handleAddHabit = async () => {
     if (newHabit.name.trim() === "") return;
-    setHabits([...habits, {
-      id: Date.now(),
+    
+    const habitPayload = {
       name: newHabit.name,
       description: newHabit.description,
       icon: newHabit.icon,
       colorKey: newHabit.colorKey,
       history: Array(365).fill(false),
-    }]);
-    setIsAddModalOpen(false);
-    setNewHabit({ name: "", description: "", icon: "🎯", colorKey: "blue" });
+      userId: username // Temporalmente asociamos el hábito a este nombre
+    };
+
+    try {
+      // Guardar en la base de datos
+      const savedHabit = await createHabit(habitPayload);
+      // Actualizar UI con el hábito real que nos devuelve el servidor (con su nuevo _id)
+      setHabits([...habits, savedHabit]);
+      setIsAddModalOpen(false);
+      setNewHabit({ name: "", description: "", icon: "🎯", colorKey: "blue" });
+    } catch (error) {
+      console.error("Error guardando hábito:", error);
+    }
   };
 
-  const handleUpdateHabit = () => {
+  const handleUpdateHabit = async () => {
     if (selectedHabit.name.trim() === "") return;
-    setHabits(habits.map((h) => (h.id === selectedHabit.id ? selectedHabit : h)));
-    setIsEditMode(false);
+    try {
+      const dbId = selectedHabit._id || selectedHabit.id;
+      const updatedHabit = await updateHabit(dbId, selectedHabit);
+      setHabits(habits.map((h) => ((h._id || h.id) === dbId ? updatedHabit : h)));
+      setIsEditMode(false);
+    } catch (error) {
+      console.error("Error actualizando hábito:", error);
+    }
   };
 
-  const handleDeleteHabit = (id) => {
+  const handleDeleteHabit = async (id) => {
     if (window.confirm(t.confirmDelete)) {
-      setHabits(habits.filter((h) => h.id !== id));
-      setSelectedHabit(null);
+      try {
+        await deleteHabit(id);
+        setHabits(habits.filter((h) => (h._id || h.id) !== id));
+        setSelectedHabit(null);
+      } catch (error) {
+        console.error("Error borrando hábito:", error);
+      }
     }
   };
 
