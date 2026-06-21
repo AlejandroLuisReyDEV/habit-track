@@ -53,26 +53,26 @@ function App() {
   // --- ESTADO DE HÁBITOS CON LOCALSTORAGE ---
   const [habits, setHabits] = useState([]);
 
-  // NUEVO: Cargar los hábitos con ESCUDO PROTECTOR
+  // NUEVO: Cargar los hábitos con ESCUDO PROTECTOR Y FRENO
   useEffect(() => {
     const fetchMyHabits = async () => {
+      // FRENO: Si no hay usuario logueado, no pedimos nada al servidor
+      if (!user) return;
+
       try {
         const data = await getHabits();
-
-        // ESCUDO: Comprobamos que lo que llega es realmente una lista (Array)
         if (Array.isArray(data)) {
           setHabits(data);
         } else {
-          console.error("El backend no devolvió una lista válida:", data);
-          setHabits([]); // Ante la duda, lista vacía para no explotar
+          setHabits([]);
         }
       } catch (error) {
         console.error("Error al cargar desde el servidor:", error);
-        setHabits([]); // Si hay error de red, lista vacía
+        setHabits([]);
       }
     };
     fetchMyHabits();
-  }, []);
+  }, [user]); // <-- CLAVE: Esto le dice a React que vuelva a pedirlos cuando el usuario cambie (se loguee)
 
   // --- EFECTOS ---
   useEffect(() => {

@@ -19,7 +19,7 @@ export const getHabits = async () => {
 export const createHabit = async (habitData) => {
   const response = await fetch(`${API_URL}/habits`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders(), 
     body: JSON.stringify(habitData),
   });
   if (!response.ok) throw new Error("El servidor rechazó la creación del hábito");
