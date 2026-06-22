@@ -12,8 +12,31 @@ import AchievementsModal from "./components/modals/AchievementsModal";
 
 import { getHabits, createHabit, updateHabit, deleteHabit } from "./services/api";
 
+// --- UTILIDADES DE FECHA ---
+// 1. Nos da la fecha local en formato "YYYY-MM-DD"
+const formatDate = (date) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const getTodayDate = () => formatDate(new Date());
+
+// 2. Nos genera una lista con los últimos 'N' días exactos (para pintar el mapa de calor)
+const getLastNDays = (n) => {
+  const dates = [];
+  const today = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    dates.push(formatDate(d));
+  }
+  return dates;
+};
+
 function App() {
+
   // --- ESTADOS GLOBALES CON LOCALSTORAGE ---
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem("ht_darkMode");
     return saved !== null ? JSON.parse(saved) : true;
@@ -81,14 +104,17 @@ function App() {
 
   // --- FUNCIONES CORE CONECTADAS A LA NUBE ---
 
-  const toggleDay = async (habitId, dayIndex) => {
-    if (!habitId) return; // FRENO ANTI-DUPLICADOS
+  const toggleDay = async (habitId, dateStr) => {
+    if (!habitId) return;
 
     const habitToUpdate = habits.find(h => (h._id || h.id) === habitId);
     if (!habitToUpdate) return;
 
-    const newHistory = [...habitToUpdate.history];
-    newHistory[dayIndex] = !newHistory[dayIndex];
+    // Leemos si el día estaba marcado (si no existe, es false)
+    const currentStatus = habitToUpdate.history[dateStr] || false;
+
+    // Clonamos el historial y le invertimos el valor a la fecha concreta
+    const newHistory = { ...habitToUpdate.history, [dateStr]: !currentStatus };
 
     setHabits(habits.map((habit) =>
       ((habit._id || habit.id) === habitId) ? { ...habit, history: newHistory } : habit
@@ -106,14 +132,12 @@ function App() {
       description: newHabit.description,
       icon: newHabit.icon,
       colorKey: newHabit.colorKey,
-      history: Array(365).fill(false),
-      userId: user?.username // Temporalmente asociamos el hábito a este nombre
+      history: {},
+      userId: user?.username
     };
 
     try {
-      // Guardar en la base de datos
       const savedHabit = await createHabit(habitPayload);
-      // Actualizar UI con el hábito real que nos devuelve el servidor (con su nuevo _id)
       setHabits([...habits, savedHabit]);
       setIsAddModalOpen(false);
       setNewHabit({ name: "", description: "", icon: "🎯", colorKey: "blue" });
@@ -162,30 +186,41 @@ function App() {
     setHabits(newHabits);
   };
 
-  // --- ESTADÍSTICAS Y LOGROS ---
-  const getTotalDays = (history) => history.filter(Boolean).length;
+  // --- ESTADÍSTICAS Y LOGROS (ACTUALIZADAS A FECHAS) ---
+  const getTotalDays = (history) => Object.values(history).filter(Boolean).length;
+
   const globalTotalDays = habits.reduce((acc, habit) => acc + getTotalDays(habit.history), 0);
 
   const getStreak = (history) => {
     let streak = 0;
-    for (let i = history.length - 1; i >= 0; i--) {
-      if (history[i]) streak++;
-      else break;
+    let checkDate = new Date();
+
+    while (true) {
+      const dateStr = formatDate(checkDate);
+      if (history[dateStr]) {
+        streak++; // Si el día está marcado, suma racha
+        checkDate.setDate(checkDate.getDate() - 1); // Miramos el día anterior
+      } else if (streak === 0 && dateStr === getTodayDate()) {
+        // Si hoy todavía no lo hemos hecho, le perdonamos y miramos si la racha sigue viva desde ayer
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break; // Racha rota
+      }
     }
     return streak;
   };
 
-  // NUEVA FUNCIÓN: Busca en todo el historial cuál fue el día que más hábitos marcaste a la vez
   const getMaxHabitsInOneDay = () => {
-    let max = 0;
-    for (let i = 0; i < 365; i++) {
-      let count = 0;
-      habits.forEach(habit => {
-        if (habit.history[i]) count++;
+    const dayCounts = {};
+    habits.forEach(habit => {
+      Object.keys(habit.history).forEach(dateStr => {
+        if (habit.history[dateStr]) {
+          dayCounts[dateStr] = (dayCounts[dateStr] || 0) + 1;
+        }
       });
-      if (count > max) max = count;
-    }
-    return max;
+    });
+    const counts = Object.values(dayCounts);
+    return counts.length > 0 ? Math.max(...counts) : 0;
   };
 
   // FUNCIÓN ACTUALIZADA: Evalúa si el logro es global o por hábito
@@ -219,57 +254,41 @@ function App() {
   const displayAchievements = unlockedAchievements.slice(0, 3);
   const hasMoreAchievements = unlockedAchievements.length > 3;
 
-  // --- RENDERIZADO DEL MAPA DE CALOR (CORREGIDO PARA MONGODB) ---
+  // --- RENDERIZADO DEL MAPA DE CALOR (DINÁMICO POR FECHA) ---
   const renderHeatmap = (habit) => {
     const activeColor = THEME_COLORS[habit.colorKey].active;
     const emptyColor = isDarkMode ? "bg-gray-500/20" : "bg-gray-400/30";
-    const safeId = habit._id || habit.id; // <-- EL IDENTIFICADOR SEGURO
+    const safeId = habit._id || habit.id;
+
+    let dates = [];
+    let gridClass = "";
 
     if (view === "week") {
-      const weekData = habit.history.slice(-7);
-      return (
-        <div className="flex justify-between gap-2 mt-4">
-          {weekData.map((isDone, i) => {
-            const actualIndex = habit.history.length - 7 + i;
-            return (
-              <button
-                key={i}
-                onClick={(e) => { e.stopPropagation(); toggleDay(safeId, actualIndex); }}
-                className={`w-full h-10 rounded-md transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
-              />
-            );
-          })}
-        </div>
-      );
+      dates = getLastNDays(7);
+      gridClass = "flex justify-between gap-2 mt-4";
     } else if (view === "month") {
-      const monthData = habit.history.slice(-30);
-      return (
-        <div className="grid grid-cols-6 gap-2 mt-4">
-          {monthData.map((isDone, i) => {
-            const actualIndex = habit.history.length - 30 + i;
-            return (
-              <button
-                key={i}
-                onClick={(e) => { e.stopPropagation(); toggleDay(safeId, actualIndex); }}
-                className={`w-full aspect-square rounded-md transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
-              />
-            );
-          })}
-        </div>
-      );
+      dates = getLastNDays(30);
+      gridClass = "grid grid-cols-6 gap-2 mt-4";
     } else if (view === "year") {
-      return (
-        <div className="grid grid-rows-7 grid-flow-col gap-[3px] mt-4 overflow-x-auto pb-2 scrollbar-hide">
-          {habit.history.map((isDone, i) => (
-            <button
-              key={i}
-              onClick={(e) => { e.stopPropagation(); toggleDay(safeId, i); }}
-              className={`w-[10px] h-[10px] rounded-[2px] flex-shrink-0 transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
-            />
-          ))}
-        </div>
-      );
+      dates = getLastNDays(365);
+      gridClass = "grid grid-rows-7 grid-flow-col gap-[3px] mt-4 overflow-x-auto pb-2 scrollbar-hide";
     }
+
+    return (
+      <div className={gridClass}>
+        {dates.map((dateStr) => {
+          const isDone = habit.history[dateStr] || false;
+          return (
+            <button
+              key={dateStr}
+              onClick={(e) => { e.stopPropagation(); toggleDay(safeId, dateStr); }}
+              title={dateStr} // ¡Añadimos un tooltip nativo para que se vea la fecha al pasar el ratón!
+              className={`${view === "year" ? "w-[10px] h-[10px] rounded-[2px]" : view === "month" ? "w-full aspect-square rounded-md" : "w-full h-10 rounded-md"} flex-shrink-0 transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
+            />
+          );
+        })}
+      </div>
+    );
   };
 
   const themeBg = isDarkMode ? "bg-[#0B1120] text-white" : "bg-gray-50 text-gray-900";
@@ -359,7 +378,8 @@ function App() {
             /* LA CUADRÍCULA NORMAL DE HÁBITOS (Lo que ya tenías) */
             <div className={`grid gap-5 ${view === "month" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
               {habits.map((habit, index) => {
-                const isTodayDone = habit.history[364];
+                const todayDateStr = getTodayDate();
+                const isTodayDone = habit.history[todayDateStr] || false;
                 const cardTint = isDarkMode ? THEME_COLORS[habit.colorKey].darkBg : THEME_COLORS[habit.colorKey].lightBg;
                 const activeColor = THEME_COLORS[habit.colorKey].active;
 
@@ -387,7 +407,7 @@ function App() {
                           {index < habits.length - 1 && <button onClick={(e) => moveHabitDown(index, e)} className={`text-xs p-1 rounded hover:bg-gray-500/20 ${textMuted}`}>▼</button>}
                         </div>
                         {view !== "month" && (
-                          <button onClick={(e) => { e.stopPropagation(); toggleDay(habit._id || habit.id, 364); }} className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-lg transition-colors ${isTodayDone ? `${activeColor} border-transparent text-white shadow-md` : `${isDarkMode ? "border-gray-600 bg-gray-800/50" : "border-gray-300 bg-white"}`}`}>
+                          <button onClick={(e) => { e.stopPropagation(); toggleDay(habit._id || habit.id, todayDateStr); }} className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-lg transition-colors ${isTodayDone ? `${activeColor} border-transparent text-white shadow-md` : `${isDarkMode ? "border-gray-600 bg-gray-800/50" : "border-gray-300 bg-white"}`}`}>
                             {isTodayDone ? "✓" : ""}
                           </button>
                         )}
@@ -444,7 +464,7 @@ function App() {
       )}
 
       {/* MODAL DE PERFIL BLINDADO */}
-      
+
       {isProfileOpen && (
         <ProfileModal
           username={user?.username || "Usuario"}
