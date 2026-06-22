@@ -254,41 +254,58 @@ function App() {
   const displayAchievements = unlockedAchievements.slice(0, 3);
   const hasMoreAchievements = unlockedAchievements.length > 3;
 
-  // --- RENDERIZADO DEL MAPA DE CALOR (DINÁMICO POR FECHA) ---
+  // --- RENDERIZADO DEL MAPA DE CALOR (DINÁMICO POR FECHA Y CORREGIDO VISUALMENTE) ---
   const renderHeatmap = (habit) => {
-    const activeColor = THEME_COLORS[habit.colorKey].active;
+    const activeColor = THEME_COLORS[habit.colorKey]?.active || "bg-blue-500";
     const emptyColor = isDarkMode ? "bg-gray-500/20" : "bg-gray-400/30";
     const safeId = habit._id || habit.id;
 
-    let dates = [];
-    let gridClass = "";
+    // ESCUDO: Si por algún casual la base de datos no manda el historial, usamos un objeto vacío
+    const historyObj = habit.history || {};
 
     if (view === "week") {
-      dates = getLastNDays(7);
-      gridClass = "flex justify-between gap-2 mt-4";
-    } else if (view === "month") {
-      dates = getLastNDays(30);
-      gridClass = "grid grid-cols-6 gap-2 mt-4";
-    } else if (view === "year") {
-      dates = getLastNDays(365);
-      gridClass = "grid grid-rows-7 grid-flow-col gap-[3px] mt-4 overflow-x-auto pb-2 scrollbar-hide";
-    }
-
-    return (
-      <div className={gridClass}>
-        {dates.map((dateStr) => {
-          const isDone = habit.history[dateStr] || false;
-          return (
+      const dates = getLastNDays(7);
+      return (
+        <div className="flex justify-between gap-2 mt-4">
+          {dates.map((dateStr) => (
             <button
               key={dateStr}
+              title={dateStr}
               onClick={(e) => { e.stopPropagation(); toggleDay(safeId, dateStr); }}
-              title={dateStr} // ¡Añadimos un tooltip nativo para que se vea la fecha al pasar el ratón!
-              className={`${view === "year" ? "w-[10px] h-[10px] rounded-[2px]" : view === "month" ? "w-full aspect-square rounded-md" : "w-full h-10 rounded-md"} flex-shrink-0 transition-all ${isDone ? activeColor : emptyColor} hover:opacity-80`}
+              className={`w-full h-10 rounded-md transition-all ${historyObj[dateStr] ? activeColor : emptyColor} hover:opacity-80`}
             />
-          );
-        })}
-      </div>
-    );
+          ))}
+        </div>
+      );
+    } else if (view === "month") {
+      const dates = getLastNDays(30);
+      return (
+        <div className="grid grid-cols-6 gap-2 mt-4">
+          {dates.map((dateStr) => (
+            <button
+              key={dateStr}
+              title={dateStr}
+              onClick={(e) => { e.stopPropagation(); toggleDay(safeId, dateStr); }}
+              className={`w-full aspect-square rounded-md transition-all ${historyObj[dateStr] ? activeColor : emptyColor} hover:opacity-80`}
+            />
+          ))}
+        </div>
+      );
+    } else if (view === "year") {
+      const dates = getLastNDays(365);
+      return (
+        <div className="grid grid-rows-7 grid-flow-col gap-[3px] mt-4 overflow-x-auto pb-2 scrollbar-hide">
+          {dates.map((dateStr) => (
+            <button
+              key={dateStr}
+              title={dateStr}
+              onClick={(e) => { e.stopPropagation(); toggleDay(safeId, dateStr); }}
+              className={`w-[10px] h-[10px] rounded-[2px] flex-shrink-0 transition-all ${historyObj[dateStr] ? activeColor : emptyColor} hover:opacity-80`}
+            />
+          ))}
+        </div>
+      );
+    }
   };
 
   const themeBg = isDarkMode ? "bg-[#0B1120] text-white" : "bg-gray-50 text-gray-900";
@@ -499,4 +516,4 @@ function App() {
   );
 }
 
-export default App;
+  export default App;
