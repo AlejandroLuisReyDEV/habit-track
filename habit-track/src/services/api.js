@@ -11,12 +11,12 @@ const getAuthHeaders = () => {
 };
 
 export const getHabits = async () => {
-  // ⚠️ Asegúrate de que incluye este objeto con los headers:
-  const response = await fetch(`${API_URL}/habits`, {
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok)
+  const response = await fetch(`${API_URL}/habits`, { headers: getAuthHeaders() });
+  if (!response.ok) {
+    // Si el servidor nos devuelve un 401, el token caducó de verdad
+    if (response.status === 401) throw new Error("401_UNAUTHORIZED");
     throw new Error("Error obteniendo los hábitos del servidor");
+  }
   return response.json();
 };
 

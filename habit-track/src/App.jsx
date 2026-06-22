@@ -75,12 +75,16 @@ function App() {
 
   // --- ESTADO DE HÁBITOS CON LOCALSTORAGE ---
   const [habits, setHabits] = useState([]);
+  const [isFetchingHabits, setIsFetchingHabits] = useState(true);
+  const [serverError, setServerError] = useState(false);
 
-  // NUEVO: Cargar los hábitos con ESCUDO PROTECTOR Y FRENO
+  // NUEVO: Cargar los hábitos con ESCUDO PROTECTOR Y ESTADO DE CARGA
   useEffect(() => {
     const fetchMyHabits = async () => {
-      // FRENO: Si el usuario todavía no existe en la memoria, no hacemos la petición
       if (!user) return;
+
+      setIsFetchingHabits(true);
+      setServerError(false);
 
       try {
         const data = await getHabits();
@@ -90,12 +94,23 @@ function App() {
           setHabits([]);
         }
       } catch (error) {
-        console.error("Error al cargar desde el servidor:", error);
-        setHabits([]);
+        console.error("Error de conexión:", error);
+
+        // Si el servidor nos echa porque la sesión expiró de verdad por seguridad
+        if (error.message === "401_UNAUTHORIZED") {
+          logout(); // Cerramos la sesión automáticamente
+          return;
+        }
+
+        // Si falla porque Vercel estaba dormido o no hay internet
+        setServerError(true);
+      } finally {
+        setIsFetchingHabits(false);
       }
     };
+
     fetchMyHabits();
-  }, [user]); // <-- CLAVE: React volverá a ejecutar esto justo DESPUÉS de loguearte
+  }, [user]);
 
   // --- EFECTOS ---
   useEffect(() => {
@@ -376,8 +391,28 @@ function App() {
             </h2>
           </div>
 
-          {/* MENSAJE MOTIVACIONAL SI NO HAY HÁBITOS */}
-          {habits.length === 0 ? (
+          {/* MENSAJE MOTIVACIONAL, CARGA O LISTA DE HÁBITOS */}
+          {isFetchingHabits ? (
+            <div className="text-center py-20 px-4">
+              <div className="animate-pulse text-5xl mb-6">⏳</div>
+              <h2 className="text-2xl font-bold mb-3">Conectando...</h2>
+              <p className={`${textMuted}`}>Despertando al servidor y cargando tus hábitos.</p>
+            </div>
+          ) : serverError ? (
+            <div className="text-center py-20 px-4">
+              <div className="text-6xl mb-6">😴</div>
+              <h2 className="text-2xl font-bold mb-3">El servidor estaba pausado</h2>
+              <p className={`${textMuted} max-w-md mx-auto mb-8`}>
+                Al llevar horas sin usarse, el servidor ha entrado en ahorro de energía. Haz clic para reconectar.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:scale-105 transition-all"
+              >
+                Reconectar
+              </button>
+            </div>
+          ) : habits.length === 0 ? (
             <div className="text-center py-20 px-4">
               <div className="text-6xl mb-6">🌱</div>
               <h2 className="text-2xl font-bold mb-3">¡Comienza tu nueva rutina!</h2>
@@ -516,4 +551,4 @@ function App() {
   );
 }
 
-  export default App;
+export default App;
