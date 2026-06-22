@@ -35,3 +35,17 @@
 - Robustez de Interfaz (Anti-Crash): Blindaje completo del Frontend mediante el uso de encadenamiento opcional (?.) y comprobación de tipos (Array.isArray), eliminando los errores de "pantalla blanca" ante fallos de red o datos corruptos.
 
 - Arquitectura de Datos (Refactorización de IDs): Estandarización de identificadores unificando _id (MongoDB) e id (Local) para resolver problemas de duplicación de eventos y errores de renderizado en el mapa de calor.
+
+22/06/26
+
+- Migración de Estructura de Datos: Evolución del modelo de historial de hábitos (tanto en MongoDB como en el estado de React), pasando de un Array estático y limitado (365 posiciones booleanas) a un Diccionario/Mapa de fechas exactas ({ "YYYY-MM-DD": boolean }). Esto elimina la restricción de un año de uso y convierte la aplicación en un trackeador temporalmente infinito.
+
+- Motor de Tiempo Real: Implementación de utilidades de fecha (formatDate, getTodayDate, getLastNDays) para calcular el "hoy" de forma dinámica basándose en la zona horaria del usuario, eliminando los índices fijos (hardcoded) del código antiguo.
+
+- Refactorización de Algoritmos de Estadísticas: Reescritura completa de la lógica matemática (getStreak, getTotalDays, getMaxHabitsInOneDay) para iterar y evaluar el nuevo formato de fechas. El nuevo algoritmo de rachas (getStreak) ahora retrocede en el tiempo día a día de forma precisa y cuenta con tolerancia si el hábito del día en curso aún no se ha marcado.
+
+- Mejora de UX y UI en el Mapa de Calor: * Integración de tooltips nativos (title) en las celdas del heatmap para mostrar al usuario la fecha exacta sobre la que interactúa.
+
+- Resolución de conflictos de diseño (layout) reajustando las clases de Tailwind (flex-shrink-0, aspect-square) para garantizar que la cuadrícula se adapte perfectamente a las vistas de Semana (7 días), Mes (30 días) y Año (365 días).
+
+- Optimización de Componentes y Limpieza: Eliminación de fragmentos de código huérfanos en la renderización y mejora en la inyección de propiedades (props) en componentes secundarios (como ProfileModal), centralizando la lógica de estado del usuario en el padre (App.jsx).
