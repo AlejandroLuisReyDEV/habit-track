@@ -173,11 +173,15 @@ function App() {
     }
   };
 
-  const handleDeleteHabit = async (id) => {
+const handleDeleteHabit = async () => {
+    if (!selectedHabit) return;
+    
+    const dbId = selectedHabit._id || selectedHabit.id;
+
     if (window.confirm(t.confirmDelete)) {
       try {
-        await deleteHabit(id);
-        setHabits(habits.filter((h) => (h._id || h.id) !== id));
+        await deleteHabit(dbId);
+        setHabits(habits.filter((h) => (h._id || h.id) !== dbId));
         setSelectedHabit(null);
       } catch (error) {
         console.error("Error borrando hábito:", error);
